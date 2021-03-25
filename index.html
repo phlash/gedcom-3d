@@ -9,9 +9,12 @@
         <script src="https://unpkg.com/3d-force-graph"> </script>
         <script src="./gedcom-parser.js"></script>
         <script>
-            function init() {
-                console.log('init');
-                fetch('./ashbys.ged')
+            function load() {
+                let gedfile=document.getElementById('gedfile').value;
+                console.log('load: '+gedfile);
+                if (!gedfile.startsWith('./'))
+                    gedfile = './'+gedfile;
+                fetch(gedfile)
                     .then(response => {
                         if (!response.ok)
                             throw new Error('HTTP oops: '+response.status);
@@ -128,7 +131,7 @@
                     })
                     // Load parsed GEDCOM
                     .graphData(json);
-                document.getElementById('button').graph = graph;
+                document.getElementById('search').graph = graph;
             }
             function focus(graph, node) {
                 if (!node) return;
@@ -143,7 +146,7 @@
                 );
             }
             function search(button) {
-                let val = document.getElementById('search').value;
+                let val = document.getElementById('name').value;
                 let graph = button.graph;
                 focus(graph, graph.graphData().nodes.find(n => n.name.startsWith(val)));
             }
@@ -152,8 +155,13 @@
             body { margin: 0; }
         </style>
     </head>
-    <body onLoad="init()">
-        <div><input id='search' type='text' size='60'/><button id='button' onclick='search(this);'>Search</button></div>
+    <body>
+        <div>
+            <input id='gedfile' type='text' size='30'/>
+            <button id='load' onclick='load();'>Load</button>&nbsp;
+            <input id='name' type='text' size='60'/>
+            <button id='search' onclick='search(this);'>Search</button>
+        </div>
         <div id='graph'></div>
     </body>
 </html>
