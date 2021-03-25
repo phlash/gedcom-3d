@@ -1,0 +1,104 @@
+<!doctype html>
+<html>
+    <head>
+        <meta charset="utf-8"/>
+        <title>3DForceGraph-test</title>
+
+        <script src="https://unpkg.com/three"> </script>
+        <script src="https://unpkg.com/three-spritetext"> </script>
+        <script src="https://unpkg.com/3d-force-graph"> </script>
+        <script src="./gedcom-parser.js"></script>
+        <script>
+            function init() {
+                console.log('init');
+                fetch('./ashbys.ged')
+                    .then(response => {
+                        if (!response.ok)
+                            throw new Error('HTTP oops: '+response.status);
+                        parse(response.body);
+                    })
+                    .catch(error => console.error(error));
+            }
+            async function parse(body) {
+                console.log('parse');
+                // new to ensure we have an object (this value) that isn't us, await as this is an async function..
+                let ged = new Gedcom()
+                await ged.load(body);
+                console.log('parsed: '+ged.count());
+                json = {}
+                json.nodes = ged.filter('INDI').map(node => {
+                    let n = {};
+                    n.id = node.point;
+                    n.name = node.subs.find(s => s.tag=='NAME')?.value;
+                    n.group = n.name ? n.name.substr(n.name.indexOf('/')) : '_unknown_';
+                    return n;
+                });
+                // using reduce() as an array expander =)
+                // https://stackoverflow.com/questions/38528473/array-map-1-element-to-multiple-element
+                json.links = ged.filter('FAM').reduce((links,node) => {
+                    let n = {};
+                    n.source = node.subs.find(s => s.tag=='HUSB')?.value;
+                    n.target = node.subs.find(s => s.tag=='WIFE')?.value;
+                    n.value = 'Married';
+                    if (n.source && n.target)
+                        links.push(n);
+                    // children linked to WIFE, then HUSB, or left orphaned =(
+                    let t = n.target ? n.target : n.source ? n.source : null;
+                    if (t) {
+                        node.subs.filter(s => s.tag=='CHIL').map(s => {
+                            let c = {};
+                            c.source = s.value;
+                            c.target = t;
+                            c.value = 'Child of';
+                            return c;
+                        }).forEach(e => { links.push(e); });
+                    }
+                    return links;
+                }, []);
+                console.log(json);
+                graph(json);
+            }
+            function graph(json) {
+                console.log('graph');
+                let graph = ForceGraph3D();
+                graph(document.body)
+                    // Let's use the sample Les Miserables dataset =)
+                    //.jsonUrl('./miserables.json')
+                    .graphData(json)
+                    // Color based on 'group' property, label with 'id' property
+                    .nodeAutoColorBy('group')
+                    .nodeLabel('id')
+                    // Extend node with a text sprite label, showing the 'name' property
+                    .nodeThreeObjectExtend(true)
+                    .nodeThreeObject(node => {
+                        const sprite = new SpriteText(node.name);
+                        sprite.material.depthWrite = false; // transparent background
+                        sprite.color = node.color;
+                        sprite.textHeight = 4;
+                        return sprite;
+                    })
+                    // Label links by 'value' property, include arrowhead at end of link
+                    .linkLabel('value')
+                    .linkDirectionalArrowLength(3.5)
+                    .linkDirectionalArrowRelPos(1)
+                    // Click to focus algorithm
+                    .onNodeClick(node => {
+                        // Aim at node from outside it
+                        const distance = 100;
+                        const distRatio = 1 + distance/Math.hypot(node.x, node.y, node.z);
+
+                        graph.cameraPosition(
+                            { x: node.x * distRatio, y: node.y * distRatio, z: node.z * distRatio }, // new position
+                            node, // lookAt ({ x, y, z })
+                            3000  // ms transition duration
+                        );
+                    });
+            }
+        </script>
+        <style>
+            body { margin: 0; }
+        </style>
+    </head>
+    <body onLoad="init()">
+    </body>
+</html>
