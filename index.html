@@ -31,6 +31,10 @@
                     n.id = node.point;
                     n.name = node.subs.find(s => s.tag=='NAME')?.value;
                     n.group = n.name ? n.name.substr(n.name.indexOf('/')) : '_unknown_';
+                    n.desc = node.subs.filter(s => s.tag!='NAME').reduce((txt,s) => {
+                        txt += '<br/>'+s.tag+':'+s.value;
+                        return txt;
+                    }, '<b>'+n.name+'</b> ('+n.id+')');
                     return n;
                 });
                 // using reduce() as an array expander =)
@@ -39,7 +43,7 @@
                     let n = {};
                     n.source = node.subs.find(s => s.tag=='HUSB')?.value;
                     n.target = node.subs.find(s => s.tag=='WIFE')?.value;
-                    n.value = 'Married';
+                    n.value = 'Husband of';
                     if (n.source && n.target)
                         links.push(n);
                     // children linked to WIFE, then HUSB, or left orphaned =(
@@ -62,12 +66,11 @@
                 console.log('graph');
                 let graph = ForceGraph3D();
                 graph(document.body)
-                    // Let's use the sample Les Miserables dataset =)
-                    //.jsonUrl('./miserables.json')
+                    // Load parsed GEDCOM
                     .graphData(json)
-                    // Color based on 'group' property, label with 'id' property
+                    // Color based on 'group' property, label with 'desc' property
                     .nodeAutoColorBy('group')
-                    .nodeLabel('id')
+                    .nodeLabel('desc')
                     // Extend node with a text sprite label, showing the 'name' property
                     .nodeThreeObjectExtend(true)
                     .nodeThreeObject(node => {
