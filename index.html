@@ -19,46 +19,77 @@
                     })
                     .catch(error => console.error(error));
             }
+            function genDesc(node,excl,name,id) {
+                return node.subs
+                    .filter(s => !excl.includes(s.tag))
+                    .reduce((txt,s) => {
+                        txt += '<br/>'+s.tag+':'+s.value;
+                        return txt;
+                    }, '<b>'+name+'</b> ('+id+')');
+            }
             async function parse(body) {
                 console.log('parse');
                 // new to ensure we have an object (this value) that isn't us, await as this is an async function..
                 let ged = new Gedcom()
                 await ged.load(body);
                 console.log('parsed: '+ged.count());
+                // construct a graph-able JSON object, we choose to represent:
+                // - INDIviduals as nodes, coloured according to surname
+                // - FAMilies (unions) as nodes, fixed colour (yellow)
+                // - marriages (unions) as links: INDI->FAM
+                // - CHILdren (of unions) as links: FAM->INDI
                 json = {}
+                // all individuals..
                 json.nodes = ged.filter('INDI').map(node => {
                     let n = {};
                     n.id = node.point;
                     n.name = node.subs.find(s => s.tag=='NAME')?.value;
                     n.group = n.name ? n.name.substr(n.name.indexOf('/')) : '_unknown_';
-                    n.desc = node.subs.filter(s => s.tag!='NAME').reduce((txt,s) => {
-                        txt += '<br/>'+s.tag+':'+s.value;
-                        return txt;
-                    }, '<b>'+n.name+'</b> ('+n.id+')');
+                    n.desc = genDesc(node,['NAME','SOUR','PAGE','NOTE','DATA','TEXT','_APID'],n.name,n.id);
                     return n;
                 });
-                // using reduce() as an array expander =)
+                json.links = [];
+                // all families..
+                // using reduce() as an array processor =)
                 // https://stackoverflow.com/questions/38528473/array-map-1-element-to-multiple-element
-                json.links = ged.filter('FAM').reduce((links,node) => {
-                    let n = {};
-                    n.source = node.subs.find(s => s.tag=='HUSB')?.value;
-                    n.target = node.subs.find(s => s.tag=='WIFE')?.value;
-                    n.value = 'Husband of';
-                    if (n.source && n.target)
-                        links.push(n);
-                    // children linked to WIFE, then HUSB, or left orphaned =(
-                    let t = n.target ? n.target : n.source ? n.source : null;
-                    if (t) {
-                        node.subs.filter(s => s.tag=='CHIL').map(s => {
-                            let c = {};
-                            c.source = s.value;
-                            c.target = t;
-                            c.value = 'Child of';
-                            return c;
-                        }).forEach(e => { links.push(e); });
+                json = ged.filter('FAM').reduce((js,fam) => {
+                    // FAM/union node
+                    let f = {}
+                    f.id = fam.point;
+                    f.name = fam.subs.find(s => s.tag=='DATE')?.value;
+                    f.name = f.name ? f.name : f.id;
+                    f.color = '#ffff00';
+                    f.desc = genDesc(fam,['DATE','SOUR','PAGE','NOTE','DATA','_APID','_FREL','_MREL'],f.name,f.id);
+                    js.nodes.push(f);
+                    // husband/wife linked to union
+                    let h = fam.subs.find(s => s.tag=='HUSB')?.value;
+                    if (h) {
+                        let l = {};
+                        l.source = h;
+                        l.target = f.id;
+                        l.value = 'Husband';
+                        l.color = '#ffff00';
+                        js.links.push(l);
                     }
-                    return links;
-                }, []);
+                    let w = fam.subs.find(s => s.tag=='WIFE')?.value;
+                    if (w) {
+                        let l = {};
+                        l.source = w;
+                        l.target = f.id;
+                        l.value = 'Wife';
+                        l.color = '#ffff00';
+                        js.links.push(l);
+                    }
+                    // children linked from union
+                    fam.subs.filter(s => s.tag=='CHIL').map(s => {
+                        let c = {};
+                        c.source = f.id;
+                        c.target = s.value;
+                        c.value = 'Child';
+                        js.links.push(c);
+                    });
+                    return js;
+                }, json);
                 console.log(json);
                 graph(json);
             }
@@ -66,8 +97,6 @@
                 console.log('graph');
                 let graph = ForceGraph3D();
                 graph(document.getElementById('graph'))
-                    // Load parsed GEDCOM
-                    .graphData(json)
                     // Color based on 'group' property, label with 'desc' property
                     .nodeAutoColorBy('group')
                     .nodeLabel('desc')
@@ -82,6 +111,7 @@
                     })
                     // Label links by 'value' property, include arrowhead at end of link
                     .linkLabel('value')
+                    // Include directional arrow heads at target end
                     .linkDirectionalArrowLength(3.5)
                     .linkDirectionalArrowRelPos(1)
                     // Click to focus algorithm
@@ -95,7 +125,9 @@
                     .onLinkRightClick(link => {
                         // Get link source, focus on that
                         focus(graph, link.source);
-                    });
+                    })
+                    // Load parsed GEDCOM
+                    .graphData(json);
                 document.getElementById('button').graph = graph;
             }
             function focus(graph, node) {
