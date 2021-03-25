@@ -86,16 +86,27 @@
                     .linkDirectionalArrowRelPos(1)
                     // Click to focus algorithm
                     .onNodeClick(node => {
-                        // Aim at node from outside it
-                        const distance = 100;
-                        const distRatio = 1 + distance/Math.hypot(node.x, node.y, node.z);
-
-                        graph.cameraPosition(
-                            { x: node.x * distRatio, y: node.y * distRatio, z: node.z * distRatio }, // new position
-                            node, // lookAt ({ x, y, z })
-                            3000  // ms transition duration
-                        );
+                        focus(graph, node);
+                    })
+                    .onLinkClick(link => {
+                        // Get link target, focus on that
+                        focus(graph, link.target);
+                    })
+                    .onLinkRightClick(link => {
+                        // Get link source, focus on that
+                        focus(graph, link.source);
                     });
+            }
+            function focus(graph, node) {
+                // Aim at node from outside it
+                const distance = 100;
+                const distRatio = 1 + distance/Math.hypot(node.x, node.y, node.z);
+
+                graph.cameraPosition(
+                    { x: node.x * distRatio, y: node.y * distRatio, z: node.z * distRatio }, // new position
+                    node, // lookAt ({ x, y, z })
+                    3000  // ms transition duration
+                );
             }
         </script>
         <style>
