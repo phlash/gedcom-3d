@@ -65,7 +65,7 @@
             function graph(json) {
                 console.log('graph');
                 let graph = ForceGraph3D();
-                graph(document.body)
+                graph(document.getElementById('graph'))
                     // Load parsed GEDCOM
                     .graphData(json)
                     // Color based on 'group' property, label with 'desc' property
@@ -96,8 +96,10 @@
                         // Get link source, focus on that
                         focus(graph, link.source);
                     });
+                document.getElementById('button').graph = graph;
             }
             function focus(graph, node) {
+                if (!node) return;
                 // Aim at node from outside it
                 const distance = 100;
                 const distRatio = 1 + distance/Math.hypot(node.x, node.y, node.z);
@@ -108,11 +110,18 @@
                     3000  // ms transition duration
                 );
             }
+            function search(button) {
+                let val = document.getElementById('search').value;
+                let graph = button.graph;
+                focus(graph, graph.graphData().nodes.find(n => n.name.startsWith(val)));
+            }
         </script>
         <style>
             body { margin: 0; }
         </style>
     </head>
     <body onLoad="init()">
+        <div><input id='search' type='text' size='60'/><button id='button' onclick='search(this);'>Search</button></div>
+        <div id='graph'></div>
     </body>
 </html>
