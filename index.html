@@ -2,7 +2,7 @@
 <html>
     <head>
         <meta charset="utf-8"/>
-        <title>3DForceGraph-test</title>
+        <title>3D Family Tree</title>
 
         <script src="https://unpkg.com/three"> </script>
         <script src="https://unpkg.com/three-spritetext"> </script>
@@ -47,6 +47,7 @@
                     let n = {};
                     n.id = node.point;
                     n.name = node.subs.find(s => s.tag=='NAME')?.value;
+                    n.date1 = node.subs.find(s => s.tag=='DATE')?.value;
                     n.group = n.name ? n.name.substr(n.name.indexOf('/')) : '_unknown_';
                     n.desc = genDesc(node,['NAME','SOUR','PAGE','NOTE','DATA','TEXT','_APID'],n.name,n.id);
                     return n;
@@ -146,9 +147,49 @@
                 );
             }
             function search(button) {
-                let val = document.getElementById('name').value;
+                let val = document.getElementById('name').value.toLowerCase();
+                let sel = document.getElementById('list');
                 let graph = button.graph;
-                focus(graph, graph.graphData().nodes.find(n => n.name.startsWith(val)));
+                // Hide any previous pop-up
+                sel.style.visibility = 'hidden';
+                // Get a list of matches
+                let list = graph.graphData().nodes.filter(n => n.name.toLowerCase().includes(val));
+                if (0==list.length) {
+                    // no results.. nothing to do
+                    console.log('search did not find any nodes');
+                } else if (1==list.length) {
+                    // only one result? go to it!
+                    console.log('search found: '+list[0].name);
+                    focus(graph, list[0])
+                } else {
+                    // more results - display pop-up selector
+                    console.log('search found ' + list.length + ' nodes')
+                    sel.list = list;
+                    sel.graph = graph;
+                    sel.innerHTML = '';
+                    for (var i=-1; i<list.length; i++) {
+                        let opt = document.createElement('option')
+                        opt.value = i;
+                        if (i<0)
+                            opt.label = '[choose]';
+                        else {
+                            opt.label = list[i].name;
+                            if (list[i].date1) opt.label += ' (' + list[i].date1 + ')';
+                        }
+                        sel.appendChild(opt);
+                    }
+                    sel.style.visibility = 'visible';
+                }
+            }
+            function selected(sel) {
+                // grab selected index, retrieve list item and set focus
+                let idx = sel.selectedIndex;
+                if (idx>0) {
+                    console.log('selected: ' + sel.list[idx-1].name);
+                    focus(sel.graph, sel.list[idx-1]);
+                } else {
+                    console.log('selected: nothing');
+                }
             }
         </script>
         <style>
@@ -161,6 +202,7 @@
             <button id='load' onclick='load();'>Load</button>&nbsp;
             <input id='name' type='text' size='60'/>
             <button id='search' onclick='search(this);'>Search</button>
+            <select id='list' style='visibility: hidden' onChange='selected(this);'></select>
         </div>
         <div id='graph'></div>
     </body>
