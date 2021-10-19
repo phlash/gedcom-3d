@@ -69,27 +69,30 @@
                     let h = fam.subs.find(s => s.tag=='HUSB')?.value;
                     if (h) {
                         let l = {};
+                        let hn = js.nodes.find(s => s.id==h)?.name;
                         l.source = h;
                         l.target = f.id;
-                        l.value = 'Husband';
-                        l.color = '#ffff00';
+                        l.value = 'Husband:'+hn;
+                        l.color = '#a0a0ff';
                         js.links.push(l);
                     }
                     let w = fam.subs.find(s => s.tag=='WIFE')?.value;
                     if (w) {
                         let l = {};
+                        let wn = js.nodes.find(s => s.id==w)?.name;
                         l.source = w;
                         l.target = f.id;
-                        l.value = 'Wife';
-                        l.color = '#ffff00';
+                        l.value = 'Wife:'+wn;
+                        l.color = '#ffa0a0';
                         js.links.push(l);
                     }
                     // children linked from union
                     fam.subs.filter(s => s.tag=='CHIL').map(s => {
                         let c = {};
+                        let cn = js.nodes.find(x => x.id==s.value)?.name;
                         c.source = f.id;
                         c.target = s.value;
-                        c.value = 'Child';
+                        c.value = 'Child:'+cn;
                         js.links.push(c);
                     });
                     return js;
@@ -115,6 +118,9 @@
                     })
                     // Label links by 'value' property, include arrowhead at end of link
                     .linkLabel('value')
+                    // link are reasonably visible and have a width
+                    .linkOpacity(0.5)
+                    .linkWidth(1)
                     // Include directional arrow heads at target end
                     .linkDirectionalArrowLength(3.5)
                     .linkDirectionalArrowRelPos(1)
